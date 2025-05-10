@@ -1,0 +1,3 @@
+*.keystore
+.apks/
+__pycache__/
