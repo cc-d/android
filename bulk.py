@@ -1,35 +1,60 @@
-import os
-import requests as req
+#!/usr/bin/env python3
+import subprocess
+import sys
 from time import sleep
 
 
-heads = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:138.0) Gecko/20100101 Firefox/138.0"
-    ),
-    "Accept": "*/*",
-    "Accept-Language": "en-US,en;q=0.5",
-    "Accept-Encoding": "gzip, deflate, br, zstd",
-    "Content-Type": "text/plain;charset=UTF-8",
-    #   "Sec-GPC": "1",
-    # "Connection": "keep-alive",
-    "Referer": "https://apkpure.com/",
-}
-
-
-import re
-
-for p in packs:
-    print(p)
-    try:
-        r = req.get(f'https://apkpure.com/search?q={p}', headers=heads)
-        print(r, r.status_code)
-        href = re.search(
-            r'(https://apkpure.com/[a-zA-Z-_.]+/[a-zA-Z-_.]+)', r.text
+def get_input_items():
+    """Read items from stdin or prompt for input if stdin is a terminal"""
+    if not sys.stdin.isatty():
+        # Stdin is redirected from a file or pipe
+        return [line.strip() for line in sys.stdin if line.strip()]
+    else:
+        # Stdin is a terminal, prompt for input
+        print(
+            "Enter items (one per line). Press Ctrl+D (Unix) or Ctrl+Z+Enter (Windows) when done:"
         )
-        r = req.get(href.group(0) + '/downloading', headers=heads)
-        print(r.text)
+        lines = []
+        try:
+            while True:
+                line = input()
+                if line.strip():
+                    lines.append(line.strip())
+        except EOFError:
+            pass
+        return lines
 
-        sleep(1)
-    except Exception as e:
-        print(e)
+
+def main():
+    # Need at least one argument for the command
+    if len(sys.argv) < 2:
+        print("Usage: python script.py command [arg1 arg2 ...]")
+        print("Example: python script.py 'pm disable-user --user {0} {item}'")
+        print("Items to act on are read from stdin.")
+        sys.exit(1)
+
+    # Get the command and arguments
+    command = sys.argv[1]  # The base command to run
+    args = sys.argv[2:]  # Additional arguments to replace {0}, {item}, etc.
+
+    # Get items from stdin
+    items = get_input_items()
+
+    if not items:
+        print("No items provided. Exiting.")
+        sys.exit(1)
+
+    # Process each item
+    for item in items:
+        # Replace {0}, {1}, etc. in the command with args
+        formatted_command = command.format(*args, item=item)
+
+        # Execute via adb shell
+        full_command = f"adb shell {formatted_command}"
+        print(f"Executing: {full_command}")
+        subprocess.Popen(full_command.split())
+        sleep(0.01)
+
+
+if __name__ == "__main__":
+    main()
